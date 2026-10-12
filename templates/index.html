@@ -1,0 +1,554 @@
+
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f3f6ff">
+    <title>Thai AI Sentiment Studio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<main class="page">
+
+    <!-- ส่วนหัวเว็บไซต์ -->
+    <header class="hero">
+        <div class="eyebrow">AIForThai · Python Web App</div>
+        <h1>Thai AI Sentiment Studio</h1>
+        <p>ทดลองวิเคราะห์ความรู้สึกจากข้อความภาษาไทยด้วยบริการ AIForThai EmoNews</p>
+    </header>
+
+    <!-- แบบฟอร์มวิเคราะห์ -->
+    <section class="panel">
+        <form method="post" id="analysisForm">
+            <label for="text">ข้อความที่ต้องการวิเคราะห์</label>
+
+            <textarea
+                id="text"
+                name="text"
+                maxlength="5000"
+                placeholder="ตัวอย่าง: ร้านนี้อาหารอร่อยมาก พนักงานบริการดี"
+                required>{{ text or '' }}</textarea>
+
+            <div class="form-footer">
+                <small>สูงสุด 5,000 ตัวอักษร</small>
+                <button type="submit" id="analyzeButton">
+                    วิเคราะห์ข้อความ <span aria-hidden="true">→</span>
+                </button>
+            </div>
+        </form>
+    </section>
+
+    
+<div class="sample-section">
+    <p class="sample-title">ทดลองวิเคราะห์ด้วยข้อความตัวอย่าง</p>
+
+    <div class="sample-buttons">
+        <button type="button" class="sample-btn positive"
+            data-message="ร้านนี้อาหารอร่อยมาก พนักงานบริการดี ประทับใจมาก">
+            ข้อความเชิงบวก
+        </button>
+
+        <button type="button" class="sample-btn negative"
+            data-message="อาหารไม่อร่อย บริการแย่ รอนานมาก ไม่ประทับใจ">
+            ข้อความเชิงลบ
+        </button>
+
+        <button type="button" class="sample-btn neutral"
+            data-message="ร้านเปิดให้บริการตั้งแต่เวลา 10.00 ถึง 20.00 น.">
+            ข้อความเป็นกลาง
+        </button>
+    </div>
+</div>
+
+    <!-- ข้อความแจ้งข้อผิดพลาด -->
+    {% if error %}
+    <section class="message error" role="alert">
+        <h2>ไม่สามารถวิเคราะห์ได้</h2>
+        <p>{{ error }}</p>
+        <p class="hint">
+            ตรวจสอบ API Key สิทธิ์การใช้บริการ และการเชื่อมต่ออินเทอร์เน็ต
+        </p>
+    </section>
+    {% endif %}
+
+    <!-- ผลการวิเคราะห์ -->
+    {% if result is not none %}
+    <section class="message result">
+
+        <div class="result-heading">
+            <div>
+                <div class="eyebrow">ANALYSIS RESULT</div>
+                <h2>ผลลัพธ์จาก AIForThai</h2>
+            </div>
+            <span class="status">ได้รับผลลัพธ์</span>
+        </div>
+
+        <!-- ข้อความที่วิเคราะห์ -->
+        <div class="analysis-text">
+            <h3>ข้อความที่วิเคราะห์</h3>
+            <p>{{ text }}</p>
+        </div>
+
+        <!-- แสดงคะแนนอารมณ์ -->
+        {% if result is mapping and result.get('result') is mapping %}
+            {% set scores = result.get('result', {}) %}
+            {% set ns = namespace(best_key='', best_score=-1) %}
+
+            {% for key, value in scores.items() %}
+                {% if value is number and value > ns.best_score %}
+                    {% set ns.best_key = key %}
+                    {% set ns.best_score = value %}
+                {% endif %}
+            {% endfor %}
+
+            {% if ns.best_key %}
+            <div class="summary-result">
+                <span class="summary-label">สรุปผลวิเคราะห์ล่าสุดจาก AI</span>
+                <h3>
+                    {% if ns.best_key == 'anger' %}โกรธ
+                    {% elif ns.best_key == 'fear' %}กลัว
+                    {% elif ns.best_key == 'joy' %}มีความสุข
+                    {% elif ns.best_key == 'neutral' %}เป็นกลาง
+                    {% elif ns.best_key == 'pleasant' %}ความรู้สึกเชิงบวก
+                    {% elif ns.best_key == 'sadness' %}เศร้า
+                    {% elif ns.best_key == 'surprise' %}ประหลาดใจ
+                    {% else %}{{ ns.best_key }}
+                    {% endif %}
+                </h3>
+                <p>{{ "%.2f"|format(ns.best_score * 100) }}%</p>
+            </div>
+            {% endif %}
+
+            
+<h3 class="scores-title">กราฟแสดงคะแนนอารมณ์</h3>
+<p class="chart-description">
+    เปรียบเทียบคะแนนอารมณ์แต่ละประเภทจากผลวิเคราะห์ของ AI
+</p>
+
+            <div class="score-list">
+                {% for key, value in scores.items() %}
+                    {% if value is number %}
+                        {% set percent = value * 100 %}
+
+                        {% if percent < 0 %}
+                            {% set percent = 0 %}
+                        {% elif percent > 100 %}
+                            {% set percent = 100 %}
+                        {% endif %}
+
+                        <div class="score-item">
+                            <div class="score-header">
+                                <span>
+                                    {% if key == 'anger' %}โกรธ
+                                    {% elif key == 'fear' %}กลัว
+                                    {% elif key == 'joy' %}มีความสุข
+                                    {% elif key == 'neutral' %}เป็นกลาง
+                                    {% elif key == 'pleasant' %}ความรู้สึกเชิงบวก
+                                    {% elif key == 'sadness' %}เศร้า
+                                    {% elif key == 'surprise' %}ประหลาดใจ
+                                    {% else %}{{ key }}
+                                    {% endif %}
+                                </span>
+                                <strong>{{ "%.2f"|format(percent) }}%</strong>
+                            </div>
+
+                            <div class="score-track">
+                                <div
+                                    class="score-fill"
+                                    data-percent="{{ percent }}">
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+        {% else %}
+            <h3>รายละเอียดผลลัพธ์</h3>
+            <pre>{{ result | tojson(indent=2) }}</pre>
+        {% endif %}
+
+        {% if result is mapping and result.get('status') %}
+        <p class="api-status">
+            สถานะ: {{ result.get('status') }}
+        </p>
+        {% endif %}
+
+    </section>
+    {% endif %}
+
+    
+<section class="history-section">
+    <h2>สถิติผลวิเคราะห์อารมณ์</h2>
+    <p>สรุปผลจากประวัติการวิเคราะห์ที่บันทึกไว้</p>
+
+    <div id="emotionStats" class="emotion-stats">
+        <p>กำลังโหลดสถิติ...</p>
+    </div>
+</section>
+
+    <!-- ประวัติการวิเคราะห์ -->
+    <section class="history-card" id="history">
+        <div class="history-heading">
+            <div>
+                <div class="eyebrow">YOUR HISTORY</div>
+                <h2>ประวัติการวิเคราะห์</h2>
+                <p>รายการข้อความที่คุณเคยวิเคราะห์ไว้</p>
+            </div>
+
+            <button type="button" id="clearHistory" class="clear-button">
+                ล้างประวัติ
+            </button>
+        </div>
+
+        <div id="historyList" aria-live="polite">
+            <p class="history-empty">กำลังโหลดประวัติ...</p>
+        </div>
+    </section>
+
+    <!-- ขั้นตอนการทำงาน -->
+    <section class="info-grid">
+        <article class="info-card">
+            <div class="number">01</div>
+            <h3>รับข้อความ</h3>
+            <p>ผู้ใช้กรอกข้อความภาษาไทยผ่านหน้าเว็บ</p>
+        </article>
+
+        <article class="info-card">
+            <div class="number">02</div>
+            <h3>เรียก API</h3>
+            <p>Python ส่งข้อความไปยังบริการวิเคราะห์ความรู้สึก</p>
+        </article>
+
+        <article class="info-card">
+            <div class="number">03</div>
+            <h3>แสดงผล</h3>
+            <p>นำผลตอบกลับมาแสดงและบันทึกประวัติ</p>
+        </article>
+    </section>
+
+    <footer>
+        โครงงานตัวอย่างเพื่อการศึกษา · เก็บ API Key ไว้ในไฟล์ .env
+    </footer>
+
+</main>
+
+<!-- ส่งข้อมูลจาก Flask ไปยัง JavaScript -->
+<script id="analysis-data" type="application/json">
+{
+    "scores": {{ (
+        result.get('result', {})
+        if result is mapping and result.get('result') is mapping
+        else {}
+    ) | tojson }},
+    "hasError": {{ 'true' if error else 'false' }},
+    "analysisSucceeded": {{ (
+        'true'
+        if result is mapping and result.get('result') is mapping and not error
+        else 'false'
+    ) }}
+}
+</script>
+
+<script>
+(function () {
+    "use strict";
+
+    const historyKey = "thaiEmotionHistory";
+    const pendingKey = "pendingEmotionMessage";
+
+    const historyList = document.getElementById("historyList");
+    const clearButton = document.getElementById("clearHistory");
+    const analysisForm = document.getElementById("analysisForm");
+    const analysisText = document.getElementById("text");
+    const analyzeButton = document.getElementById("analyzeButton");
+
+    const analysisDataElement = document.getElementById("analysis-data");
+    let analysisData = {
+        scores: {},
+        hasError: false,
+        analysisSucceeded: false
+    };
+
+    try {
+        analysisData = JSON.parse(analysisDataElement.textContent);
+    } catch (error) {
+        console.error("อ่านข้อมูลผลวิเคราะห์ไม่สำเร็จ", error);
+    }
+
+    // อ่านประวัติที่บันทึกไว้
+    function getHistory() {
+        try {
+            const history = JSON.parse(
+                localStorage.getItem(historyKey) || "[]"
+            );
+            return Array.isArray(history) ? history : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    
+function renderEmotionStats() {
+    const history = getHistory();
+    const statsContainer = document.getElementById("emotionStats");
+
+    if (!statsContainer) return;
+
+    if (history.length === 0) {
+        statsContainer.innerHTML =
+            "<p>ยังไม่มีข้อมูล กรุณาวิเคราะห์ข้อความก่อน</p>";
+        return;
+    }
+
+    const counts = {};
+
+    history.forEach(function (item) {
+        const emotion = item.result || "ไม่ระบุผล";
+        counts[emotion] = (counts[emotion] || 0) + 1;
+    });
+
+    const total = history.length;
+
+    statsContainer.innerHTML = Object.entries(counts)
+        .map(function ([emotion, count]) {
+            const percent = Math.round((count / total) * 100);
+
+            const row = document.createElement("div");
+            row.className = "emotion-stat-row";
+
+            const label = document.createElement("div");
+            label.className = "emotion-stat-label";
+            label.textContent = emotion;
+
+            const track = document.createElement("div");
+            track.className = "emotion-stat-track";
+
+            const bar = document.createElement("div");
+            bar.className = "emotion-stat-bar";
+            bar.style.width = percent + "%";
+
+            const value = document.createElement("span");
+            value.textContent = count + " ครั้ง (" + percent + "%)";
+
+            track.appendChild(bar);
+            row.appendChild(label);
+            row.appendChild(track);
+            row.appendChild(value);
+
+            return row.outerHTML;
+        })
+        .join("");
+
+    const summary = document.createElement("p");
+    summary.textContent = "จำนวนรายการทั้งหมด: " + total + " รายการ";
+    statsContainer.prepend(summary);
+}
+
+    // บันทึกประวัติการวิเคราะห์
+    window.saveEmotionHistory = function (message, result) {
+        const history = getHistory();
+
+        history.unshift({
+            id: Date.now().toString() +
+                Math.random().toString(36).slice(2),
+            message: message,
+            result: result,
+            date: new Date().toLocaleString("th-TH")
+        });
+
+        try {
+            localStorage.setItem(
+                historyKey,
+                JSON.stringify(history.slice(0, 50))
+            );
+        } catch (error) {
+            console.error("บันทึกประวัติไม่สำเร็จ", error);
+            alert("บันทึกประวัติไม่สำเร็จ กรุณาตรวจสอบพื้นที่จัดเก็บเบราว์เซอร์");
+            return;
+        }
+
+        renderHistory();
+    };
+
+    // แสดงประวัติบนหน้าเว็บ
+    function renderHistory() {
+        const history = getHistory();
+        historyList.replaceChildren();
+
+        if (history.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "history-empty";
+            empty.textContent = "ยังไม่มีประวัติการวิเคราะห์";
+            historyList.appendChild(empty);
+            return;
+        }
+
+        history.forEach(function (item) {
+            const card = document.createElement("article");
+            card.className = "history-item";
+
+            const message = document.createElement("p");
+            message.className = "history-message";
+            message.textContent = item.message || "";
+
+            const result = document.createElement("p");
+            result.className = "history-result";
+            result.textContent = "ผลวิเคราะห์: " + (item.result || "");
+
+            const date = document.createElement("p");
+            date.className = "history-date";
+            date.textContent = item.date || "";
+
+            const actions = document.createElement("div");
+            actions.className = "history-actions";
+
+            const reuseButton = document.createElement("button");
+            reuseButton.type = "button";
+            reuseButton.className = "reuse-button";
+            reuseButton.textContent = "ใช้ข้อความนี้อีกครั้ง";
+
+            reuseButton.addEventListener("click", function () {
+                analysisText.value = item.message || "";
+                analysisText.focus();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+
+            const removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.className = "history-delete";
+            removeButton.textContent = "ลบรายการ";
+
+            removeButton.addEventListener("click", function () {
+                const updated = getHistory().filter(function (entry) {
+                    return entry.id !== item.id;
+                });
+
+                localStorage.setItem(
+                    historyKey,
+                    JSON.stringify(updated)
+                );
+                renderHistory();
+            });
+
+            actions.append(reuseButton, removeButton);
+            card.append(message, result, date, actions);
+            historyList.appendChild(card);
+        });
+    }
+
+    // จำข้อความก่อนส่งให้ Flask วิเคราะห์
+    analysisForm.addEventListener("submit", function () {
+        const message = analysisText.value.trim();
+
+        if (message) {
+            sessionStorage.setItem(pendingKey, message);
+        }
+
+        analyzeButton.disabled = true;
+        analyzeButton.textContent = "กำลังวิเคราะห์...";
+    });
+
+    // แปลงชื่ออารมณ์เป็นภาษาไทย
+    function emotionLabel(key) {
+        const labels = {
+            anger: "โกรธ",
+            fear: "กลัว",
+            joy: "มีความสุข",
+            neutral: "เป็นกลาง",
+            pleasant: "ความรู้สึกเชิงบวก",
+            sadness: "เศร้า",
+            surprise: "ประหลาดใจ"
+        };
+
+        return labels[key] || key;
+    }
+
+    // บันทึกผลหลังจาก Flask วิเคราะห์สำเร็จ
+    const pendingMessage = sessionStorage.getItem(pendingKey);
+
+    if (analysisData.hasError) {
+        sessionStorage.removeItem(pendingKey);
+    } else if (
+        analysisData.analysisSucceeded &&
+        pendingMessage
+    ) {
+        const scores = analysisData.scores || {};
+        let bestKey = "";
+        let bestScore = -1;
+
+        Object.entries(scores).forEach(function ([key, value]) {
+            if (
+                typeof value === "number" &&
+                Number.isFinite(value) &&
+                value > bestScore
+            ) {
+                bestKey = key;
+                bestScore = value;
+            }
+        });
+
+        if (bestKey !== "") {
+            const history = getHistory();
+
+            // ป้องกันการบันทึกซ้ำเมื่อรีเฟรชหน้าผลลัพธ์
+            const alreadySaved = history.length > 0 &&
+                history[0].message === pendingMessage;
+
+            if (!alreadySaved) {
+                window.saveEmotionHistory(
+                    pendingMessage,
+                    emotionLabel(bestKey) +
+                    " (" + (bestScore * 100).toFixed(2) + "%)"
+                );
+            }
+        }
+
+        sessionStorage.removeItem(pendingKey);
+    }
+
+    // ปุ่มล้างประวัติทั้งหมด
+    clearButton.addEventListener("click", function () {
+        if (getHistory().length === 0) {
+            alert("ยังไม่มีประวัติให้ลบ");
+            return;
+        }
+
+        if (confirm("ต้องการล้างประวัติการวิเคราะห์ทั้งหมดหรือไม่?")) {
+            localStorage.removeItem(historyKey);
+            renderHistory();
+        }
+    });
+
+    // แสดงแถบคะแนน
+    document.querySelectorAll(".score-fill").forEach(function (bar) {
+        const percent = Number(bar.dataset.percent);
+
+        if (Number.isFinite(percent)) {
+            bar.style.width =
+                Math.max(0, Math.min(100, percent)) + "%";
+        }
+    });
+    
+document.querySelectorAll(".sample-btn").forEach(function (button) {
+    button.addEventListener("click", function () {
+        const textarea = document.getElementById("text");
+
+        if (textarea) {
+            textarea.value = button.dataset.message || "";
+            textarea.focus();
+        }
+    });
+});
+
+    // โหลดประวัติเมื่อเปิดหน้าเว็บ
+    renderHistory();
+    
+renderEmotionStats();
+})();
+</script>
+
+</body>
+</html>
